@@ -18,10 +18,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install musl cross-compilers from GitHub releases
 # These are x86_64-hosted toolchains - image must run on x86_64
-RUN curl -sL https://github.com/AlanD20/musl-cross-compilers/releases/download/v0.1.0/x86_64-linux-musl-cross.tar.xz | xz -d | tar -xC /opt \
-    && curl -sL https://github.com/AlanD20/musl-cross-compilers/releases/download/v0.1.0/aarch64-linux-musl-cross.tar.xz | xz -d | tar -xC /opt
+RUN curl -sL https://github.com/musl-cross/musl-cross/releases/download/20241103/x86_64-unknown-linux-musl.tar.xz | xz -d | tar -xC /opt \
+    && curl -sL https://github.com/musl-cross/musl-cross/releases/download/20241103/aarch64-unknown-linux-musl.tar.xz | xz -d | tar -xC /opt
 
-ENV PATH="/opt/x86_64-linux-musl-cross/bin:/opt/aarch64-linux-musl-cross/bin:${PATH}"
+ENV PATH="/opt/x86_64-unknown-linux-musl/bin:/opt/aarch64-unknown-linux-musl/bin:${PATH}"
+
+# Create symlinks for expected linker names (cargo config expects x86_64-linux-musl-gcc)
+RUN ln -s /opt/x86_64-unknown-linux-musl/bin/x86_64-unknown-linux-musl-gcc /usr/local/bin/x86_64-linux-musl-gcc \
+    && ln -s /opt/aarch64-unknown-linux-musl/bin/aarch64-unknown-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
 
 # Install sccache for build caching (architecture-aware)
 RUN ARCH=$(dpkg --print-architecture) && \
