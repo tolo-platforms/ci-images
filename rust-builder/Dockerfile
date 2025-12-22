@@ -21,9 +21,9 @@ RUN ZIG_VERSION="0.13.0" && \
     curl -sL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ARCH}-${ZIG_VERSION}.tar.xz" \
     | tar -xJ --strip-components=1 -C /usr/local
 
-# Create wrapper scripts for zig cc as cross-compilers
-RUN printf '#!/bin/sh\nexec zig cc -target x86_64-linux-musl "$@"\n' > /usr/local/bin/x86_64-linux-musl-gcc && \
-    printf '#!/bin/sh\nexec zig cc -target aarch64-linux-musl "$@"\n' > /usr/local/bin/aarch64-linux-musl-gcc && \
+# Create wrapper scripts for zig cc as cross-compilers (use full path to zig)
+RUN printf '#!/bin/sh\nexec /usr/local/zig cc -target x86_64-linux-musl "$@"\n' > /usr/local/bin/x86_64-linux-musl-gcc && \
+    printf '#!/bin/sh\nexec /usr/local/zig cc -target aarch64-linux-musl "$@"\n' > /usr/local/bin/aarch64-linux-musl-gcc && \
     chmod +x /usr/local/bin/x86_64-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
 
 # Install sccache for build caching (architecture-aware)
