@@ -13,18 +13,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     musl-tools \
+    xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install musl cross-compilers
-RUN curl -sL https://musl.cc/x86_64-linux-musl-cross.tgz | tar -xzC /opt \
-    && curl -sL https://musl.cc/aarch64-linux-musl-cross.tgz | tar -xzC /opt
+# Install musl cross-compilers from GitHub releases (musl.cc blocks GitHub Actions)
+RUN curl -sL https://github.com/musl-cross/musl-cross/releases/download/20241103/x86_64-unknown-linux-musl.tar.xz | xz -d | tar -xC /opt \
+    && curl -sL https://github.com/musl-cross/musl-cross/releases/download/20241103/aarch64-unknown-linux-musl.tar.xz | xz -d | tar -xC /opt
 
-ENV PATH="/opt/x86_64-linux-musl-cross/bin:/opt/aarch64-linux-musl-cross/bin:${PATH}"
+ENV PATH="/opt/x86_64-unknown-linux-musl/bin:/opt/aarch64-unknown-linux-musl/bin:${PATH}"
 
-# Install sccache for build caching
-RUN curl -sL https://github.com/mozilla/sccache/releases/download/v0.8.2/sccache-v0.8.2-x86_64-unknown-linux-musl.tar.gz \
-    | tar -xzf - --strip-components=1 -C /usr/local/bin sccache-v0.8.2-x86_64-unknown-linux-musl/sccache \
-    && chmod +x /usr/local/bin/sccache
+# Install sccache for build caching (architecture-aware)
+RUN ARCH=$(dpkg --print-architecture) && \
+    case "$ARCH" in \
+      amd64) SCCACHE_ARCH="x86_64-unknown-linux-musl" ;; \
+      arm64) SCCACHE_ARCH="aarch64-unknown-linux-musl" ;; \
+      *) echo "Unsupported architecture: $ARCH" && exit 1 ;; \
+    esac && \
+    curl -sL "https://github.com/mozilla/sccache/releases/download/v0.8.2/sccache-v0.8.2-${SCCACHE_ARCH}.tar.gz" \
+    | tar -xzf - --strip-components=1 -C /usr/local/bin "sccache-v0.8.2-${SCCACHE_ARCH}/sccache" && \
+    chmod +x /usr/local/bin/sccache
 
 # Install Rust components and musl targets
 RUN rustup component add rustfmt clippy \
