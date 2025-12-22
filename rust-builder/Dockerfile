@@ -1,5 +1,6 @@
 # Rust builder for CI - cross-compilation for musl targets
-# Pre-installed: Rust, sccache, Zig (for cross-compilation), rustfmt, clippy
+# Pre-installed: Rust, sccache, musl cross-compilers, rustfmt, clippy
+# NOTE: This image must run on x86_64 hosts (GitHub-hosted runners or x86_64 self-hosted)
 
 FROM rust:1.83-bookworm
 
@@ -15,18 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Zig for cross-compilation (works on any host architecture)
-RUN ZIG_VERSION="0.13.0" && \
-    ARCH=$(uname -m) && \
-    curl -sL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ARCH}-${ZIG_VERSION}.tar.xz" \
-    | tar -xJ --strip-components=1 -C /usr/local
+# Install musl cross-compilers from GitHub releases
+# These are x86_64-hosted toolchains - image must run on x86_64
+RUN curl -sL https://github.com/AlanD20/musl-cross-compilers/releases/download/v0.1.0/x86_64-linux-musl-cross.tar.xz | xz -d | tar -xC /opt \
+    && curl -sL https://github.com/AlanD20/musl-cross-compilers/releases/download/v0.1.0/aarch64-linux-musl-cross.tar.xz | xz -d | tar -xC /opt
 
-# Create wrapper scripts for zig cc as cross-compilers
-# Filter out --target flags since zig uses different target format
-# Use gnu target to avoid Zig's musl CRT conflicting with Rust's musl
-RUN printf '#!/bin/sh\nfor arg; do case "$arg" in --target=*) ;; *) set -- "$@" "$arg";; esac; shift; done\nexec /usr/local/zig cc -target x86_64-linux-gnu "$@"\n' > /usr/local/bin/x86_64-linux-musl-gcc && \
-    printf '#!/bin/sh\nfor arg; do case "$arg" in --target=*) ;; *) set -- "$@" "$arg";; esac; shift; done\nexec /usr/local/zig cc -target aarch64-linux-gnu "$@"\n' > /usr/local/bin/aarch64-linux-musl-gcc && \
-    chmod +x /usr/local/bin/x86_64-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
+ENV PATH="/opt/x86_64-linux-musl-cross/bin:/opt/aarch64-linux-musl-cross/bin:${PATH}"
 
 # Install sccache for build caching (architecture-aware)
 RUN ARCH=$(dpkg --print-architecture) && \
