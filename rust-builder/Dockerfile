@@ -23,9 +23,9 @@ RUN ZIG_VERSION="0.13.0" && \
 
 # Create wrapper scripts for zig cc as cross-compilers
 # Filter out --target flags since zig uses different target format
-# Add -nostartfiles to prevent Zig's CRT from conflicting with Rust's musl
-RUN printf '#!/bin/sh\nfor arg; do case "$arg" in --target=*) ;; *) set -- "$@" "$arg";; esac; shift; done\nexec /usr/local/zig cc -target x86_64-linux-musl -nostartfiles "$@"\n' > /usr/local/bin/x86_64-linux-musl-gcc && \
-    printf '#!/bin/sh\nfor arg; do case "$arg" in --target=*) ;; *) set -- "$@" "$arg";; esac; shift; done\nexec /usr/local/zig cc -target aarch64-linux-musl -nostartfiles "$@"\n' > /usr/local/bin/aarch64-linux-musl-gcc && \
+# Use gnu target to avoid Zig's musl CRT conflicting with Rust's musl
+RUN printf '#!/bin/sh\nfor arg; do case "$arg" in --target=*) ;; *) set -- "$@" "$arg";; esac; shift; done\nexec /usr/local/zig cc -target x86_64-linux-gnu "$@"\n' > /usr/local/bin/x86_64-linux-musl-gcc && \
+    printf '#!/bin/sh\nfor arg; do case "$arg" in --target=*) ;; *) set -- "$@" "$arg";; esac; shift; done\nexec /usr/local/zig cc -target aarch64-linux-gnu "$@"\n' > /usr/local/bin/aarch64-linux-musl-gcc && \
     chmod +x /usr/local/bin/x86_64-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
 
 # Install sccache for build caching (architecture-aware)
