@@ -22,6 +22,10 @@ RUN curl -sL https://github.com/musl-cross/musl-cross/releases/download/20241103
 
 ENV PATH="/opt/x86_64-unknown-linux-musl/bin:/opt/aarch64-unknown-linux-musl/bin:${PATH}"
 
+# Create conventional symlinks for cross-compilers (provides stable interface)
+RUN ln -s /opt/x86_64-unknown-linux-musl/bin/x86_64-unknown-linux-musl-gcc /usr/local/bin/x86_64-linux-musl-gcc \
+    && ln -s /opt/aarch64-unknown-linux-musl/bin/aarch64-unknown-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
+
 # Install sccache for build caching (architecture-aware)
 RUN ARCH=$(dpkg --print-architecture) && \
     case "$ARCH" in \
