@@ -1,30 +1,30 @@
 # Rust builder for CI - cross-compilation for musl targets
-# Pre-installed: Rust, sccache, musl cross-compilers, rustfmt, clippy
+# Pre-installed: Rust, sccache, Zig (for cross-compilation), rustfmt, clippy
 
 FROM rust:1.83-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies and cross-compilation toolchains
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
     pkg-config \
     libssl-dev \
-    musl-tools \
     xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install musl cross-compilers from GitHub releases (musl.cc blocks GitHub Actions)
-RUN curl -sL https://github.com/musl-cross/musl-cross/releases/download/20241103/x86_64-unknown-linux-musl.tar.xz | xz -d | tar -xC /opt \
-    && curl -sL https://github.com/musl-cross/musl-cross/releases/download/20241103/aarch64-unknown-linux-musl.tar.xz | xz -d | tar -xC /opt
+# Install Zig for cross-compilation (works on any host architecture)
+RUN ZIG_VERSION="0.13.0" && \
+    ARCH=$(uname -m) && \
+    curl -sL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ARCH}-${ZIG_VERSION}.tar.xz" \
+    | tar -xJ --strip-components=1 -C /usr/local
 
-ENV PATH="/opt/x86_64-unknown-linux-musl/bin:/opt/aarch64-unknown-linux-musl/bin:${PATH}"
-
-# Create conventional symlinks for cross-compilers (provides stable interface)
-RUN ln -s /opt/x86_64-unknown-linux-musl/bin/x86_64-unknown-linux-musl-gcc /usr/local/bin/x86_64-linux-musl-gcc \
-    && ln -s /opt/aarch64-unknown-linux-musl/bin/aarch64-unknown-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
+# Create wrapper scripts for zig cc as cross-compilers
+RUN printf '#!/bin/sh\nexec zig cc -target x86_64-linux-musl "$@"\n' > /usr/local/bin/x86_64-linux-musl-gcc && \
+    printf '#!/bin/sh\nexec zig cc -target aarch64-linux-musl "$@"\n' > /usr/local/bin/aarch64-linux-musl-gcc && \
+    chmod +x /usr/local/bin/x86_64-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
 
 # Install sccache for build caching (architecture-aware)
 RUN ARCH=$(dpkg --print-architecture) && \
