@@ -27,6 +27,34 @@ ENV PATH="/opt/x86_64-unknown-linux-musl/bin:/opt/aarch64-unknown-linux-musl/bin
 RUN ln -s /opt/x86_64-unknown-linux-musl/bin/x86_64-unknown-linux-musl-gcc /usr/local/bin/x86_64-linux-musl-gcc \
     && ln -s /opt/aarch64-unknown-linux-musl/bin/aarch64-unknown-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
 
+# Build static OpenSSL for musl targets (required for openssl-sys crate)
+ENV OPENSSL_VERSION=3.0.15
+
+# Build static OpenSSL for x86_64-musl
+RUN curl -sL https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz | tar xz \
+    && cd openssl-${OPENSSL_VERSION} \
+    && CC=x86_64-unknown-linux-musl-gcc ./Configure no-shared no-async linux-x86_64 \
+        --prefix=/opt/openssl/x86_64-musl \
+        --openssldir=/opt/openssl/x86_64-musl/ssl \
+    && make -j$(nproc) \
+    && make install_sw \
+    && cd .. && rm -rf openssl-${OPENSSL_VERSION}
+
+# Build static OpenSSL for aarch64-musl
+RUN curl -sL https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz | tar xz \
+    && cd openssl-${OPENSSL_VERSION} \
+    && CC=aarch64-unknown-linux-musl-gcc ./Configure no-shared no-async linux-aarch64 \
+        --prefix=/opt/openssl/aarch64-musl \
+        --openssldir=/opt/openssl/aarch64-musl/ssl \
+    && make -j$(nproc) \
+    && make install_sw \
+    && cd .. && rm -rf openssl-${OPENSSL_VERSION}
+
+# Set OpenSSL environment variables for cargo/openssl-sys
+ENV OPENSSL_STATIC=1
+ENV X86_64_UNKNOWN_LINUX_MUSL_OPENSSL_DIR=/opt/openssl/x86_64-musl
+ENV AARCH64_UNKNOWN_LINUX_MUSL_OPENSSL_DIR=/opt/openssl/aarch64-musl
+
 # Install sccache for build caching (architecture-aware)
 RUN ARCH=$(dpkg --print-architecture) && \
     case "$ARCH" in \
